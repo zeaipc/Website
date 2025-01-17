@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Advanced User Database</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background-color: #f4f4f4; }
+    button { margin-top: 20px; padding: 10px; }
+    .action-buttons button { margin: 5px; padding: 5px 10px; }
+    .search-bar { margin-bottom: 20px; }
+    .pagination { margin-top: 20px; }
+    .pagination button { margin: 0 5px; padding: 5px 10px; }
+  </style>
+</head>
+<body>
+  <h2>Advanced User Database</h2>
+  
+  <div class="search-bar">
+    <input type="text" id="searchInput" placeholder="Search by Username, Email..." oninput="searchUsers()">
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>User ID <button onclick="sortBy('id')">Sort</button></th>
+        <th>Username <button onclick="sortBy('username')">Sort</button></th>
+        <th>Email</th>
+        <th>Phone Number</th>
+
+        <th>Status <button onclick="sortBy('status')">Sort</button></th>
+        <th>Signup Time</th>
+        <th>Last Login Time</th>
+        <th>Profile Picture</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="userTable">
+      <!-- User data will be populated here -->
+    </tbody>
+  </table>
+
+  <button id="downloadBtn">Download User Database</button>
+  <button id="deleteAllBtn" style="background-color: red; color: white;">Delete All Users</button>
+
+  <div class="pagination" id="pagination"></div>
+
+<script>
+  const users = JSON.parse(localStorage.getItem("users")) || [];
+  const userTable = document.getElementById("userTable");
+  const itemsPerPage = 5;
+  let currentPage = 1;
+
+  // Display user list with pagination
+  function displayUserList() {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const paginatedUsers = users.slice(startIndex, endIndex);
+    
+    userTable.innerHTML = ""; // Clear previous data
+    paginatedUsers.forEach((user, index) => {
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${user.id || index + 1}</td>
+        <td>${user.username}</td>
+        <td>${user.email}</td>
+        <td>${user.phone || "N/A"}</td>
+
+        <td>${user.status || "Active"}</td>
+        <td>${user.signupTime}</td>
+        <td>${user.lastLogin || "N/A"}</td>
+        <td><img src="${user.profilePicture || ''}" alt="Profile" style="width: 50px; height: 50px; border-radius: 50%;"></td>
+        <td class="action-buttons">
+          <button onclick="editUser(${index})">Edit</button>
+          <button style="background-color: red; color: white;" onclick="deleteUser(${index})">Delete</button>
+        </td>
+      `;
+      userTable.appendChild(row);
+    });
+
+    // Handle pagination buttons
+    const totalPages = Math.ceil(users.length / itemsPerPage);
+    const paginationDiv = document.getElementById("pagination");
+    paginationDiv.innerHTML = '';
+
+    for (let i = 1; i <= totalPages; i++) {
+      const button = document.createElement("button");
+      button.textContent = i;
+      button.onclick = () => {
+        currentPage = i;
+        displayUserList();
+      };
+      paginationDiv.appendChild(button);
+    }
+  }
+
+  // Call the function to display users initially
+  displayUserList();
+
+  // Search users based on input
+  function searchUsers() {
+    const searchTerm = document.getElementById("searchInput").value.toLowerCase();
+    const filteredUsers = users.filter(user => 
+      user.username.toLowerCase().includes(searchTerm) || 
+      user.email.toLowerCase().includes(searchTerm)
+    );
+    displayFilteredUserList(filteredUsers);
+  }
+
+  // Function to display filtered user list
+  function displayFilteredUserList(filteredUsers) {
+    userTable.innerHTML = "";
+    filteredUsers.forEach((user, index) => {
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${user.id || index + 1}</td>
+        <td>${user.username}</td>
+        <td>${user.email}</td>
+        <td>${user.phone || "N/A"}</td>
+        <td>${user.role || "User"}</td>
+        <td>${user.status || "Active"}</td>
+        <td>${user.signupTime}</td>
+        <td>${user.lastLogin || "N/A"}</td>
+        <td><img src="${user.profilePicture || ''}" alt="Profile" style="width: 50px; height: 50px; border-radius: 50%;"></td>
+        <td class="action-buttons">
+          <button onclick="editUser(${index})">Edit</button>
+          <button style="background-color: red; color: white;" onclick="deleteUser(${index})">Delete</button>
+        </td>
+      `;
+      userTable.appendChild(row);
+    });
+  }
+
+  // Sorting function
+  function sortBy(field) {
+    users.sort((a, b) => {
+      if (a[field] > b[field]) return 1;
+      if (a[field] < b[field]) return -1;
+      return 0;
+    });
+    displayUserList();
+  }
+
+  // Function to download the user list as a CSV file
+  document.getElementById("downloadBtn").addEventListener("click", function() {
+    let csvContent = "ID,Username,Email,Phone,Role,Status,Signup Time,Last Login Time,Profile Picture\n";
+    users.forEach(user => {
+      const profilePic = user.profilePicture ? user.profilePicture : '';
+      csvContent += `${user.id || ''},${user.username},${user.email},${user.phone || "N/A"},${user.role || "User"},${user.status || "Active"},${user.signupTime},${user.lastLogin || "N/A"},${profilePic}\n`;
+    });
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "user_database.csv";
+    link.click();
+  });
+
+  // Function to delete all users
+  document.getElementById("deleteAllBtn").addEventListener("click", function() {
+    if (confirm("Are you sure you want to delete all users? This action cannot be undone.")) {
+      localStorage.removeItem("users");
+      alert("All users have been deleted.");
+      location.reload();
+    }
+  });
+
+  // Function to delete a specific user
+  function deleteUser(index) {
+    if (confirm("Are you sure you want to delete this user?")) {
+      users.splice(index, 1);
+      localStorage.setItem("users", JSON.stringify(users));
+      displayUserList();
+    }
+  }
+
+  // Function to edit a specific user
+  function editUser(index) {
+    const user = users[index];
+    const newUsername = prompt("Enter the new username:", user.username);
+    const newEmail = prompt("Enter the new email:", user.email);
+    const newRole = prompt("Enter the new role:", user.role || "User");
+    const newStatus = prompt("Enter the new status:", user.status || "Active");
+    const newPhone = prompt("Enter the new phone number:", user.phone || "");
+
+    if (newUsername) user.username = newUsername;
+    if (newEmail) user.email = newEmail;
+    if (newRole) user.role = newRole;
+    if (newStatus) user.status = newStatus;
+    if (newPhone) user.phone = newPhone;
+
+    localStorage.setItem("users", JSON.stringify(users));
+    displayUserList();
+  }
+</script>
+</body>
+</html>
